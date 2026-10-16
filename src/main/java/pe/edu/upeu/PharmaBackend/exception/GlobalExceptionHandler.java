@@ -1,13 +1,17 @@
 package pe.edu.upeu.PharmaBackend.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import pe.edu.upeu.PharmaBackend.dto.ErrorResponseDTO;
 
 import java.time.LocalDateTime;
@@ -17,6 +21,11 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log =
+            LoggerFactory.getLogger(
+                    GlobalExceptionHandler.class
+            );
+
     /*
      * Recurso no encontrado
      * HTTP 404
@@ -24,16 +33,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RecursosNoEncontradoException.class)
     public ResponseEntity<ErrorResponseDTO> handleNotFound(
             RecursosNoEncontradoException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request
+    ) {
 
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
-                HttpStatus.NOT_FOUND.value(),
-                "Not Found",
-                ex.getMessage(),
-                request.getRequestURI(),
-                null
-        );
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.NOT_FOUND.value(),
+                        "Not Found",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                );
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
@@ -47,16 +58,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ReglaNegocioException.class)
     public ResponseEntity<ErrorResponseDTO> handleBusinessRule(
             ReglaNegocioException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request
+    ) {
 
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                ex.getMessage(),
-                request.getRequestURI(),
-                null
-        );
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.CONFLICT.value(),
+                        "Conflict",
+                        ex.getMessage(),
+                        request.getRequestURI(),
+                        null
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -64,27 +77,31 @@ public class GlobalExceptionHandler {
     }
 
     /*
-     * Errores de integridad de datos
-     * Ejemplo: intentar eliminar una categoría con productos asociados
+     * Errores de integridad
      * HTTP 409
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolation(
+    public ResponseEntity<ErrorResponseDTO>
+    handleDataIntegrityViolation(
             DataIntegrityViolationException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request
+    ) {
 
-        String mensaje = request.getRequestURI().contains("/categorias")
-                ? "No se puede eliminar la categoría porque tiene productos asociados"
-                : "La operación no se pudo completar por una restricción de integridad de datos";
+        String mensaje =
+                request.getRequestURI()
+                        .contains("/categorias")
+                        ? "No se puede eliminar la categoría porque tiene productos asociados"
+                        : "La operación no se pudo completar por una restricción de integridad de datos";
 
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
-                HttpStatus.CONFLICT.value(),
-                "Conflict",
-                mensaje,
-                request.getRequestURI(),
-                null
-        );
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.CONFLICT.value(),
+                        "Conflict",
+                        mensaje,
+                        request.getRequestURI(),
+                        null
+                );
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
@@ -92,34 +109,36 @@ public class GlobalExceptionHandler {
     }
 
     /*
-     * Errores de @Valid
+     * Errores de validacion @Valid
      * HTTP 400
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDTO> handleValidation(
             MethodArgumentNotValidException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request
+    ) {
 
         Map<String, String> validationErrors =
                 new LinkedHashMap<>();
 
         ex.getBindingResult()
                 .getFieldErrors()
-                .forEach(error ->
-                        validationErrors.put(
+                .forEach(
+                        error -> validationErrors.put(
                                 error.getField(),
                                 error.getDefaultMessage()
                         )
                 );
 
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                "Existen errores de validación",
-                request.getRequestURI(),
-                validationErrors
-        );
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Bad Request",
+                        "Existen errores de validación",
+                        request.getRequestURI(),
+                        validationErrors
+                );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
@@ -127,25 +146,105 @@ public class GlobalExceptionHandler {
     }
 
     /*
-     * Parámetro de consulta con formato inválido
+     * Parametro con formato invalido
      * HTTP 400
      */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ErrorResponseDTO> handleTypeMismatch(
+    @ExceptionHandler(
+            MethodArgumentTypeMismatchException.class
+    )
+    public ResponseEntity<ErrorResponseDTO>
+    handleTypeMismatch(
             MethodArgumentTypeMismatchException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request
+    ) {
 
-        ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
-                HttpStatus.BAD_REQUEST.value(),
-                "Bad Request",
-                "El parámetro '" + ex.getName() + "' tiene un formato inválido",
-                request.getRequestURI(),
-                null
-        );
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.BAD_REQUEST.value(),
+                        "Bad Request",
+                        "El parámetro '"
+                                + ex.getName()
+                                + "' tiene un formato inválido",
+                        request.getRequestURI(),
+                        null
+                );
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(error);
+    }
+
+    /*
+     * Login fallido:
+     * usuario inexistente,
+     * contrasena incorrecta
+     * o usuario deshabilitado.
+     *
+     * Siempre se muestra el mismo mensaje
+     * para no revelar informacion.
+     *
+     * HTTP 401
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorResponseDTO>
+    handleAuthentication(
+            AuthenticationException ex,
+            HttpServletRequest request
+    ) {
+
+        log.warn(
+                "Autenticación fallida en {} | motivo={}",
+                request.getRequestURI(),
+                ex.getClass().getSimpleName()
+        );
+
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.UNAUTHORIZED.value(),
+                        "Unauthorized",
+                        "Usuario o contraseña incorrectos",
+                        request.getRequestURI(),
+                        null
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(error);
+    }
+
+    /*
+     * El usuario esta autenticado,
+     * pero @PreAuthorize rechazo
+     * la operacion.
+     *
+     * HTTP 403
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDTO>
+    handleAccessDenied(
+            AccessDeniedException ex,
+            HttpServletRequest request
+    ) {
+
+        log.warn(
+                "Acceso denegado en {}",
+                request.getRequestURI()
+        );
+
+        ErrorResponseDTO error =
+                new ErrorResponseDTO(
+                        LocalDateTime.now(),
+                        HttpStatus.FORBIDDEN.value(),
+                        "Forbidden",
+                        "No tiene permisos para realizar esta operación",
+                        request.getRequestURI(),
+                        null
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
                 .body(error);
     }
 }
