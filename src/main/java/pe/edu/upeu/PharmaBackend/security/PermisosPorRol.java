@@ -17,7 +17,6 @@ import java.util.TreeSet;
 public final class PermisosPorRol {
 
     private static final Map<String, Set<Permiso>> PERMISOS = Map.of(
-
             "ADMIN",
             Collections.unmodifiableSet(
                     EnumSet.allOf(Permiso.class)
@@ -47,7 +46,6 @@ public final class PermisosPorRol {
     }
 
     public static Set<Permiso> de(String nombreRol) {
-
         return PERMISOS.getOrDefault(
                 nombreRol,
                 Set.of()
