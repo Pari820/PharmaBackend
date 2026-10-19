@@ -6,7 +6,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.upeu.PharmaBackend.dto.auth.AsignarRolesRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.EmpleadoResponseDTO;
+import pe.edu.upeu.PharmaBackend.dto.auth.EstadoUsuarioRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.RolResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.UsuarioRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.UsuarioResponseDTO;
@@ -45,8 +47,8 @@ public class UsuarioServiceImpl implements UsuarioService {
             EmpleadoRepository empleadoRepository,
             RolRepository rolRepository,
             PasswordEncoder passwordEncoder,
-            UsuarioMapper usuarioMapper
-    ) {
+            UsuarioMapper usuarioMapper) {
+
         this.usuarioRepository = usuarioRepository;
         this.empleadoRepository = empleadoRepository;
         this.rolRepository = rolRepository;
@@ -73,8 +75,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         Empleado empleado =
                 empleadoRepository
                         .findById(request.getEmpleadoId())
-                        .orElseThrow(
-                                () -> new RecursosNoEncontradoException(
+                        .orElseThrow(() ->
+                                new RecursosNoEncontradoException(
                                         "Empleado no encontrado con id: "
                                                 + request.getEmpleadoId()
                                 )
@@ -88,10 +90,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             );
         }
 
-        if (usuarioRepository.existsByEmpleadoId(
-                empleado.getId()
-        )) {
-
+        if (usuarioRepository.existsByEmpleadoId(empleado.getId())) {
             throw new ReglaNegocioException(
                     "El empleado "
                             + empleado.getNombreCompleto()
@@ -99,9 +98,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             );
         }
 
-        if (usuarioRepository
-                .existsByUsernameIgnoreCase(username)) {
-
+        if (usuarioRepository.existsByUsernameIgnoreCase(username)) {
             throw new ReglaNegocioException(
                     "Ya existe un usuario con el nombre: "
                             + username
@@ -130,11 +127,8 @@ public class UsuarioServiceImpl implements UsuarioService {
             );
         }
 
-        if (
-                request.getPassword()
-                        .getBytes(StandardCharsets.UTF_8)
-                        .length > 72
-        ) {
+        if (request.getPassword()
+                .getBytes(StandardCharsets.UTF_8).length > 72) {
 
             throw new ReglaNegocioException(
                     "La contraseña no puede superar 72 bytes"
@@ -153,9 +147,7 @@ public class UsuarioServiceImpl implements UsuarioService {
 
         usuario.setEstado(true);
         usuario.setEmpleado(empleado);
-        usuario.setRoles(
-                new HashSet<>(roles)
-        );
+        usuario.setRoles(new HashSet<>(roles));
 
         Usuario guardado =
                 usuarioRepository.save(usuario);
@@ -167,8 +159,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuarioMapper.nombresRoles(roles)
         );
 
-        return usuarioMapper
-                .toUsuarioResponse(guardado);
+        return usuarioMapper.toUsuarioResponse(guardado);
     }
 
     @Override
@@ -176,13 +167,9 @@ public class UsuarioServiceImpl implements UsuarioService {
     public List<UsuarioResponseDTO> listar() {
 
         return usuarioRepository
-                .findAll(
-                        Sort.by("username")
-                )
+                .findAll(Sort.by("username"))
                 .stream()
-                .map(
-                        usuarioMapper::toUsuarioResponse
-                )
+                .map(usuarioMapper::toUsuarioResponse)
                 .toList();
     }
 
@@ -191,8 +178,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     public List<EmpleadoResponseDTO> listarEmpleados() {
 
         Set<Long> conUsuario =
-                usuarioRepository
-                        .findEmpleadoIdsConUsuario();
+                usuarioRepository.findEmpleadoIdsConUsuario();
 
         return empleadoRepository
                 .findAll(
@@ -202,15 +188,11 @@ public class UsuarioServiceImpl implements UsuarioService {
                         )
                 )
                 .stream()
-                .map(
-                        empleado ->
-                                usuarioMapper
-                                        .toEmpleadoResponse(
-                                                empleado,
-                                                conUsuario.contains(
-                                                        empleado.getId()
-                                                )
-                                        )
+                .map(e ->
+                        usuarioMapper.toEmpleadoResponse(
+                                e,
+                                conUsuario.contains(e.getId())
+                        )
                 )
                 .toList();
     }
@@ -220,13 +202,153 @@ public class UsuarioServiceImpl implements UsuarioService {
     public List<RolResponseDTO> listarRoles() {
 
         return rolRepository
-                .findAll(
-                        Sort.by("nombre")
-                )
+                .findAll(Sort.by("nombre"))
                 .stream()
-                .map(
-                        usuarioMapper::toRolResponse
-                )
+                .map(usuarioMapper::toRolResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO asignarRoles(
+            Long usuarioId,
+            AsignarRolesRequestDTO request,
+            String usernameActual) {
+
+        Usuario usuario =
+                usuarioRepository
+                        .findById(usuarioId)
+                        .orElseThrow(() ->
+                                new RecursosNoEncontradoException(
+                                        "Usuario no encontrado con id: "
+                                                + usuarioId
+                                )
+                        );
+
+        List<Rol> roles =
+                rolRepository.findAllById(
+                        request.getRolIds()
+                );
+
+        if (roles.size() != request.getRolIds().size()) {
+
+            Set<Long> encontrados =
+                    roles.stream()
+                            .map(Rol::getId)
+                            .collect(Collectors.toSet());
+
+            Set<Long> faltantes =
+                    new HashSet<>(request.getRolIds());
+
+            faltantes.removeAll(encontrados);
+
+            throw new RecursosNoEncontradoException(
+                    "Roles no encontrados: " + faltantes
+            );
+        }
+
+        boolean incluyeAdmin =
+                roles.stream()
+                        .anyMatch(rol ->
+                                "ADMIN".equalsIgnoreCase(
+                                        rol.getNombre()
+                                )
+                        );
+
+        boolean esElMismoUsuario =
+                usuario.getUsername()
+                        .equalsIgnoreCase(usernameActual);
+
+        boolean actualmenteEsAdmin =
+                usuario.getRoles()
+                        .stream()
+                        .anyMatch(rol ->
+                                "ADMIN".equalsIgnoreCase(
+                                        rol.getNombre()
+                                )
+                        );
+
+        if (esElMismoUsuario
+                && actualmenteEsAdmin
+                && !incluyeAdmin) {
+
+            throw new ReglaNegocioException(
+                    "Un ADMIN no puede quitarse a sí mismo el rol ADMIN"
+            );
+        }
+
+        usuario.setRoles(
+                new HashSet<>(roles)
+        );
+
+        Usuario guardado =
+                usuarioRepository.save(usuario);
+
+        log.info(
+                "Roles actualizados: usuario={} roles={}",
+                guardado.getUsername(),
+                usuarioMapper.nombresRoles(roles)
+        );
+
+        return usuarioMapper.toUsuarioResponse(
+                guardado
+        );
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO cambiarEstado(
+            Long usuarioId,
+            EstadoUsuarioRequestDTO request,
+            String usernameActual) {
+
+        Usuario usuario =
+                usuarioRepository
+                        .findById(usuarioId)
+                        .orElseThrow(() ->
+                                new RecursosNoEncontradoException(
+                                        "Usuario no encontrado con id: "
+                                                + usuarioId
+                                )
+                        );
+
+        boolean esElMismoUsuario =
+                usuario.getUsername()
+                        .equalsIgnoreCase(usernameActual);
+
+        boolean esAdmin =
+                usuario.getRoles()
+                        .stream()
+                        .anyMatch(rol ->
+                                "ADMIN".equalsIgnoreCase(
+                                        rol.getNombre()
+                                )
+                        );
+
+        if (esElMismoUsuario
+                && esAdmin
+                && Boolean.FALSE.equals(request.getEstado())) {
+
+            throw new ReglaNegocioException(
+                    "Un ADMIN no puede desactivarse a sí mismo"
+            );
+        }
+
+        usuario.setEstado(
+                request.getEstado()
+        );
+
+        Usuario guardado =
+                usuarioRepository.save(usuario);
+
+        log.info(
+                "Estado de usuario actualizado: usuario={} estado={}",
+                guardado.getUsername(),
+                guardado.getEstado()
+        );
+
+        return usuarioMapper.toUsuarioResponse(
+                guardado
+        );
     }
 }
