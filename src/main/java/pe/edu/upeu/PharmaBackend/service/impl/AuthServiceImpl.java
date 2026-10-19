@@ -6,95 +6,75 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.upeu.PharmaBackend.dto.auth.CambioPasswordRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.LoginRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.LoginResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.auth.UsuarioResponseDTO;
 import pe.edu.upeu.PharmaBackend.entity.Usuario;
 import pe.edu.upeu.PharmaBackend.exception.RecursosNoEncontradoException;
+import pe.edu.upeu.PharmaBackend.exception.ReglaNegocioException;
 import pe.edu.upeu.PharmaBackend.mapper.UsuarioMapper;
 import pe.edu.upeu.PharmaBackend.repository.UsuarioRepository;
 import pe.edu.upeu.PharmaBackend.security.JwtService;
 import pe.edu.upeu.PharmaBackend.security.PermisosPorRol;
 import pe.edu.upeu.PharmaBackend.service.service.AuthService;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Service
-public class AuthServiceImpl
-        implements AuthService {
+public class AuthServiceImpl implements AuthService {
 
     private static final Logger log =
-            LoggerFactory.getLogger(
-                    AuthServiceImpl.class
-            );
+            LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             UsuarioRepository usuarioRepository,
-            UsuarioMapper usuarioMapper
-    ) {
+            UsuarioMapper usuarioMapper,
+            PasswordEncoder passwordEncoder) {
 
-        this.authenticationManager =
-                authenticationManager;
-
-        this.jwtService =
-                jwtService;
-
-        this.usuarioRepository =
-                usuarioRepository;
-
-        this.usuarioMapper =
-                usuarioMapper;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+        this.usuarioRepository = usuarioRepository;
+        this.usuarioMapper = usuarioMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public LoginResponseDTO login(
-            LoginRequestDTO request
-    ) {
+    public LoginResponseDTO login(LoginRequestDTO request) {
 
-        String username =
-                request.getUsername().trim();
+        String username = request.getUsername().trim();
 
-        log.info(
-                "Intento de inicio de sesión: usuario={}",
-                username
+        log.info("Intento de inicio de sesión: usuario={}", username);
+
+        Authentication autenticacion = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        username,
+                        request.getPassword()
+                )
         );
 
-        Authentication autenticacion =
-                authenticationManager.authenticate(
-                        new UsernamePasswordAuthenticationToken(
-                                username,
-                                request.getPassword()
-                        )
-                );
-
         UserDetails principal =
-                (UserDetails)
-                        autenticacion.getPrincipal();
+                (UserDetails) autenticacion.getPrincipal();
 
-        Usuario usuario =
-                buscar(
-                        principal.getUsername()
-                );
+        Usuario usuario = buscar(principal.getUsername());
 
-        String token =
-                jwtService.generarToken(
-                        principal
-                );
+        String token = jwtService.generarToken(principal);
 
         List<String> roles =
-                usuarioMapper.nombresRoles(
-                        usuario.getRoles()
-                );
+                usuarioMapper.nombresRoles(usuario.getRoles());
 
         log.info(
                 "Inicio de sesión correcto: usuario={} roles={}",
@@ -107,40 +87,77 @@ public class AuthServiceImpl
                 "Bearer",
                 jwtService.getExpiracionSegundos(),
                 usuario.getUsername(),
-                usuario.getEmpleado()
-                        .getNombreCompleto(),
+                usuario.getEmpleado().getNombreCompleto(),
                 roles,
-                PermisosPorRol.permisos(
-                        usuario.getRoles()
-                )
+                PermisosPorRol.permisos(usuario.getRoles())
         );
     }
 
     @Override
     @Transactional(readOnly = true)
-    public UsuarioResponseDTO usuarioActual(
-            String username
-    ) {
+    public UsuarioResponseDTO usuarioActual(String username) {
+        return usuarioMapper.toUsuarioResponse(buscar(username));
+    }
 
-        return usuarioMapper.toUsuarioResponse(
-                buscar(username)
+    @Override
+    @Transactional
+    public void cambiarPassword(
+            String username,
+            CambioPasswordRequestDTO request) {
+
+        Usuario usuario = buscar(username);
+
+        // Verificar la contraseña actual.
+        if (!passwordEncoder.matches(
+                request.getPasswordActual(),
+                usuario.getPassword())) {
+
+            throw new ReglaNegocioException(
+                    "La contraseña actual no es correcta"
+            );
+        }
+
+        // La nueva contraseña no puede ser igual a la actual.
+        if (passwordEncoder.matches(
+                request.getPasswordNueva(),
+                usuario.getPassword())) {
+
+            throw new ReglaNegocioException(
+                    "La nueva contraseña debe ser distinta de la actual"
+            );
+        }
+
+        // BCrypt admite como máximo 72 bytes.
+        if (request.getPasswordNueva()
+                .getBytes(StandardCharsets.UTF_8).length > 72) {
+
+            throw new ReglaNegocioException(
+                    "La contraseña no puede superar 72 bytes"
+            );
+        }
+
+        // Nunca se guarda la contraseña en texto plano.
+        usuario.setPassword(
+                passwordEncoder.encode(request.getPasswordNueva())
+        );
+
+        usuarioRepository.save(usuario);
+
+        // Nunca registrar contraseñas en el log.
+        log.info(
+                "Contraseña actualizada correctamente: usuario={}",
+                usuario.getUsername()
         );
     }
 
-    private Usuario buscar(
-            String username
-    ) {
+    private Usuario buscar(String username) {
 
         return usuarioRepository
-                .findByUsernameIgnoreCase(
-                        username
-                )
-                .orElseThrow(
-                        () ->
-                                new RecursosNoEncontradoException(
-                                        "Usuario no encontrado: "
-                                                + username
-                                )
+                .findByUsernameIgnoreCase(username)
+                .orElseThrow(() ->
+                        new RecursosNoEncontradoException(
+                                "Usuario no encontrado: " + username
+                        )
                 );
     }
 }
