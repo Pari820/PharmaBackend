@@ -121,6 +121,32 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- ==================================== -->
+		<!-- PRACTICA 13: CACHE Y MONITOREO        -->
+		<!-- ==================================== -->
+
+		<!-- CACHE DE SPRING BOOT -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-cache</artifactId>
+		</dependency>
+
+		<!-- REDIS -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-redis</artifactId>
+		</dependency>
+
+		<!-- ACTUATOR: HEALTH Y METRICAS -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+		<!-- ==================================== -->
+		<!-- DEPENDENCIAS DE PRUEBAS              -->
+		<!-- ==================================== -->
+
 		<!-- TEST JPA -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -152,7 +178,6 @@
 	</dependencies>
 
 	<build>
-
 		<plugins>
 
 			<!-- SPRING BOOT -->
@@ -169,7 +194,6 @@
 				<executions>
 
 					<execution>
-
 						<id>default-compile</id>
 						<phase>compile</phase>
 
@@ -178,22 +202,16 @@
 						</goals>
 
 						<configuration>
-
 							<annotationProcessorPaths>
-
 								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
 								</path>
-
 							</annotationProcessorPaths>
-
 						</configuration>
-
 					</execution>
 
 					<execution>
-
 						<id>default-testCompile</id>
 						<phase>test-compile</phase>
 
@@ -202,26 +220,19 @@
 						</goals>
 
 						<configuration>
-
 							<annotationProcessorPaths>
-
 								<path>
 									<groupId>org.projectlombok</groupId>
 									<artifactId>lombok</artifactId>
 								</path>
-
 							</annotationProcessorPaths>
-
 						</configuration>
-
 					</execution>
 
 				</executions>
-
 			</plugin>
 
 		</plugins>
-
 	</build>
 
 </project>

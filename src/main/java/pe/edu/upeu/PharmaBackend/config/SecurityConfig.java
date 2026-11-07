@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+
 import pe.edu.upeu.PharmaBackend.security.JwtAuthenticationFilter;
 import pe.edu.upeu.PharmaBackend.security.JwtService;
 import pe.edu.upeu.PharmaBackend.security.RestAccessDeniedHandler;
@@ -34,9 +35,19 @@ import static pe.edu.upeu.PharmaBackend.enums.Permiso.VENTAS_REGISTRAR;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    // =========================================
+    // RUTAS PUBLICAS
+    // =========================================
+
     private static final String[] RUTAS_PUBLICAS = {
             "/api/v1/auth/login",
             "/api/health",
+
+            // PRACTICA 13 - ACTUATOR HEALTH PUBLICO
+            "/actuator/health",
+            "/actuator/health/**",
+
+            // SWAGGER
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -63,11 +74,19 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
 
+                // =========================================
+                // CORS
+                // =========================================
+
                 .cors(cors ->
                         cors.configurationSource(
                                 corsConfigurationSource
                         )
                 )
+
+                // =========================================
+                // SESIONES SIN ESTADO - JWT
+                // =========================================
 
                 .sessionManagement(sesion ->
                         sesion.sessionCreationPolicy(
@@ -77,13 +96,11 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // =============================
+                        // =========================================
                         // RUTAS PUBLICAS
-                        // =============================
+                        // =========================================
 
-                        .requestMatchers(
-                                RUTAS_PUBLICAS
-                        )
+                        .requestMatchers(RUTAS_PUBLICAS)
                         .permitAll()
 
                         .requestMatchers(
@@ -92,13 +109,22 @@ public class SecurityConfig {
                         )
                         .permitAll()
 
+                        // =========================================
+                        // PRACTICA 13 - ACTUATOR PROTEGIDO
+                        // =========================================
 
-                        // =============================
-                        // CATALOGO
-                        // =============================
+                        // Health ya es publico.
+                        // Los demas endpoints requieren
+                        // permiso USUARIOS_ADMINISTRAR.
 
-                        // Todos los usuarios autorizados
-                        // pueden leer categorias y productos
+                        .requestMatchers("/actuator/**")
+                        .hasAuthority(
+                                USUARIOS_ADMINISTRAR.name()
+                        )
+
+                        // =========================================
+                        // CATALOGO - LECTURA
+                        // =========================================
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -109,8 +135,9 @@ public class SecurityConfig {
                                 CATALOGO_LEER.name()
                         )
 
-                        // Solo ADMIN y ALMACENERO
-                        // pueden modificar el catalogo
+                        // =========================================
+                        // CATALOGO - ESCRITURA
+                        // =========================================
 
                         .requestMatchers(
                                 "/api/v1/categorias/**",
@@ -120,10 +147,9 @@ public class SecurityConfig {
                                 CATALOGO_ESCRIBIR.name()
                         )
 
-
-                        // =============================
-                        // CLIENTES
-                        // =============================
+                        // =========================================
+                        // CLIENTES - LECTURA
+                        // =========================================
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -133,6 +159,10 @@ public class SecurityConfig {
                                 CLIENTES_LEER.name()
                         )
 
+                        // =========================================
+                        // CLIENTES - ESCRITURA
+                        // =========================================
+
                         .requestMatchers(
                                 "/api/v1/clientes/**"
                         )
@@ -140,10 +170,9 @@ public class SecurityConfig {
                                 CLIENTES_ESCRIBIR.name()
                         )
 
-
-                        // =============================
-                        // VENTAS
-                        // =============================
+                        // =========================================
+                        // VENTAS - REGISTRAR
+                        // =========================================
 
                         .requestMatchers(
                                 HttpMethod.POST,
@@ -153,6 +182,10 @@ public class SecurityConfig {
                                 VENTAS_REGISTRAR.name()
                         )
 
+                        // =========================================
+                        // VENTAS - LECTURA
+                        // =========================================
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/ventas/**"
@@ -161,6 +194,10 @@ public class SecurityConfig {
                                 VENTAS_LEER.name()
                         )
 
+                        // =========================================
+                        // VENTAS - OTRAS OPERACIONES
+                        // =========================================
+
                         .requestMatchers(
                                 "/api/v1/ventas/**"
                         )
@@ -168,10 +205,9 @@ public class SecurityConfig {
                                 VENTAS_REGISTRAR.name()
                         )
 
-
-                        // =============================
+                        // =========================================
                         // ADMINISTRACION DE SEGURIDAD
-                        // =============================
+                        // =========================================
 
                         .requestMatchers(
                                 "/api/v1/usuarios/**",
@@ -182,14 +218,17 @@ public class SecurityConfig {
                                 USUARIOS_ADMINISTRAR.name()
                         )
 
-
-                        // =============================
+                        // =========================================
                         // RESTO DE ENDPOINTS
-                        // =============================
+                        // =========================================
 
                         .anyRequest()
                         .authenticated()
                 )
+
+                // =========================================
+                // MANEJO DE ERRORES DE SEGURIDAD
+                // =========================================
 
                 .exceptionHandling(errores ->
                         errores
@@ -201,6 +240,10 @@ public class SecurityConfig {
                                 )
                 )
 
+                // =========================================
+                // FILTRO JWT
+                // =========================================
+
                 .addFilterBefore(
                         jwtFilter,
                         UsernamePasswordAuthenticationFilter.class
@@ -209,18 +252,24 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // =========================================
+    // CIFRADO DE CONTRASEÑAS
+    // =========================================
+
     @Bean
     public PasswordEncoder passwordEncoder() {
-
         return new BCryptPasswordEncoder();
     }
+
+    // =========================================
+    // AUTHENTICATION MANAGER
+    // =========================================
 
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration configuration
     ) throws Exception {
 
-        return configuration
-                .getAuthenticationManager();
+        return configuration.getAuthenticationManager();
     }
 }
