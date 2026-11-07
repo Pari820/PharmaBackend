@@ -1,5 +1,34 @@
 spring:
   application:
     name: PhamaBackend
+
   profiles:
     active: dev
+
+  # PRACTICA 13 - CONEXION A REDIS
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 500ms
+
+  # PRACTICA 13 - CACHE
+  cache:
+    type: redis
+    cache-names: categorias,productos
+    redis:
+      time-to-live: 10m
+      enable-statistics: true
+
+# PRACTICA 13 - ACTUATOR
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
