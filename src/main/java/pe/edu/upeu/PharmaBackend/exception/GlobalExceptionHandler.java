@@ -3,6 +3,7 @@ package pe.edu.upeu.PharmaBackend.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,7 @@ public class GlobalExceptionHandler {
     ) {
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.NOT_FOUND.value(),
                         "Not Found",
@@ -62,7 +63,7 @@ public class GlobalExceptionHandler {
     ) {
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.CONFLICT.value(),
                         "Conflict",
@@ -94,7 +95,7 @@ public class GlobalExceptionHandler {
                         : "La operación no se pudo completar por una restricción de integridad de datos";
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.CONFLICT.value(),
                         "Conflict",
@@ -131,7 +132,7 @@ public class GlobalExceptionHandler {
                 );
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.BAD_REQUEST.value(),
                         "Bad Request",
@@ -159,7 +160,7 @@ public class GlobalExceptionHandler {
     ) {
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.BAD_REQUEST.value(),
                         "Bad Request",
@@ -200,7 +201,7 @@ public class GlobalExceptionHandler {
         );
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.UNAUTHORIZED.value(),
                         "Unauthorized",
@@ -234,7 +235,7 @@ public class GlobalExceptionHandler {
         );
 
         ErrorResponseDTO error =
-                new ErrorResponseDTO(
+                createError(
                         LocalDateTime.now(),
                         HttpStatus.FORBIDDEN.value(),
                         "Forbidden",
@@ -246,5 +247,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(error);
+    }
+
+    private ErrorResponseDTO createError(
+            LocalDateTime timestamp,
+            int status,
+            String error,
+            String message,
+            String path,
+            Map<String, String> validationErrors
+    ) {
+        return new ErrorResponseDTO(
+                timestamp,
+                status,
+                error,
+                message,
+                path,
+                validationErrors,
+                MDC.get("requestId")
+        );
     }
 }
