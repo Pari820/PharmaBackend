@@ -19,5 +19,17 @@ public class ErrorResponseDTO {
     private String error;
     private String message;
     private String path;
-    private Map<String, String> validationErrors;
+        private Map<String, String> validationErrors;
+    private String requestId;
+
+    public ErrorResponseDTO(
+            LocalDateTime timestamp,
+            int status,
+            String error,
+            String message,
+            String path,
+            Map<String, String> validationErrors
+    ) {
+        this(timestamp, status, error, message, path, validationErrors, null);
+    }
 }
