@@ -4,9 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import pe.edu.upeu.PharmaBackend.auditoria.EventoAuditoria;
+import java.math.BigDecimal;
 import org.springframework.transaction.annotation.Transactional;
 
+import pe.edu.upeu.PharmaBackend.dto.PaginaResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.ProductoRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.ProductoResponseDTO;
 import pe.edu.upeu.PharmaBackend.entity.Categoria;
@@ -25,13 +32,16 @@ public class ProductoServiceImpl implements ProductoService {
 
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ApplicationEventPublisher eventos;
 
     public ProductoServiceImpl(
             ProductoRepository productoRepository,
-            CategoriaRepository categoriaRepository) {
+            CategoriaRepository categoriaRepository,
+            ApplicationEventPublisher eventos) {
 
         this.productoRepository = productoRepository;
         this.categoriaRepository = categoriaRepository;
+        this.eventos = eventos;
     }
 
     // CREAR PRODUCTO - INVALIDAR CACHE
@@ -97,6 +107,7 @@ public class ProductoServiceImpl implements ProductoService {
         Categoria categoria = buscarCategoria(t.getCategoriaId());
 
         producto.setNombre(nombre);
+        BigDecimal precioAnterior = producto.getPrecio();
         producto.setPrecio(t.getPrecio());
         producto.setStock(t.getStock());
         producto.setEstado(t.getEstado());
@@ -105,6 +116,11 @@ public class ProductoServiceImpl implements ProductoService {
         Producto prodActualizado =
                 productoRepository.saveAndFlush(producto);
 
+        if (precioAnterior.compareTo(prodActualizado.getPrecio()) != 0) {
+            eventos.publishEvent(EventoAuditoria.de(
+                    "PRECIO_MODIFICADO", "Producto", prodActualizado.getId(),
+                    precioAnterior + " -> " + prodActualizado.getPrecio()));
+        }
         return convertirResponse(prodActualizado);
     }
 
@@ -144,6 +160,8 @@ public class ProductoServiceImpl implements ProductoService {
                 );
 
         productoRepository.delete(producto);
+        eventos.publishEvent(EventoAuditoria.de(
+                "PRODUCTO_ELIMINADO", "Producto", producto.getId(), producto.getNombre()));
     }
 
     // LISTAR PRODUCTOS - CACHE REDIS
@@ -196,6 +214,59 @@ public class ProductoServiceImpl implements ProductoService {
                 producto.getCategoria().getNombre(),
                 producto.getFechaCreacion(),
                 producto.getFechaModificacion()
+        );
+    }
+
+    // PAGINACION REAL EN ORACLE - SESION 14
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<ProductoResponseDTO> listarPaginado(
+            int pagina,
+            int tamanio,
+            String ordenarPor,
+            String direccion) {
+
+        if (pagina < 0 || tamanio < 1 || tamanio > 100) {
+            throw new ReglaNegocioException(
+                    "La pagina debe ser >= 0 y el tamanio entre 1 y 100"
+            );
+        }
+
+        String campo = ordenarPor == null || ordenarPor.isBlank()
+                ? "nombre" : ordenarPor;
+
+        if (!java.util.Set.of("nombre", "precio", "stock")
+                .contains(campo)) {
+            throw new ReglaNegocioException(
+                    "Campo de ordenamiento no permitido"
+            );
+        }
+
+        Sort.Direction sentido =
+                "desc".equalsIgnoreCase(direccion)
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC;
+
+        PageRequest solicitud = PageRequest.of(
+                pagina,
+                tamanio,
+                Sort.by(sentido, campo)
+                    .and(Sort.by("id"))
+        );
+
+        Page<Producto> datos =
+                productoRepository.findAll(solicitud);
+
+        return new PaginaResponseDTO<>(
+                datos.getContent()
+                        .stream()
+                        .map(this::convertirResponse)
+                        .toList(),
+                datos.getNumber(),
+                datos.getSize(),
+                datos.getTotalElements(),
+                datos.getTotalPages(),
+                datos.isLast()
         );
     }
 }

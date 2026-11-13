@@ -4,12 +4,17 @@ package pe.edu.upeu.PharmaBackend.service.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import pe.edu.upeu.PharmaBackend.auditoria.EventoAuditoria;
 import org.springframework.transaction.annotation.Transactional;
 
 import pe.edu.upeu.PharmaBackend.dto.DetalleVentaRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.DetalleVentaResponseDTO;
+import pe.edu.upeu.PharmaBackend.dto.PaginaResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaResponseDTO;
 
@@ -44,6 +49,7 @@ public class VentaServiceImpl implements VentaService {
     private final VentaRepository ventaRepository;
     private final ClienteRepository clienteRepository;
     private final ProductoRepository productoRepository;
+    private final ApplicationEventPublisher eventos;
 
     private static final Set<String> CAMPOS_ORDENABLES =
             Set.of("id", "fecha", "total", "estado");
@@ -53,11 +59,13 @@ public class VentaServiceImpl implements VentaService {
     public VentaServiceImpl(
             VentaRepository ventaRepository,
             ClienteRepository clienteRepository,
-            ProductoRepository productoRepository) {
+            ProductoRepository productoRepository,
+            ApplicationEventPublisher eventos) {
 
         this.ventaRepository = ventaRepository;
         this.clienteRepository = clienteRepository;
         this.productoRepository = productoRepository;
+        this.eventos = eventos;
     }
 
     // REGISTRAR VENTA - INVALIDAR CACHE DE PRODUCTOS
@@ -147,6 +155,9 @@ public class VentaServiceImpl implements VentaService {
         venta.setTotal(total);
 
         Venta guardada = ventaRepository.save(venta);
+        eventos.publishEvent(EventoAuditoria.de(
+                "VENTA_REGISTRADA", "Venta", guardada.getId(),
+                "total=" + guardada.getTotal() + " | items=" + guardada.getDetalles().size()));
 
         return convertirResponse(guardada);
     }
@@ -254,6 +265,59 @@ public class VentaServiceImpl implements VentaService {
         return resultado;
     }
 
+    // SESION 14: consulta paginada en base de datos con filtros.
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<VentaResponseDTO> buscarVentasPaginadas(
+            Long clienteId,
+            EstadoVenta estado,
+            LocalDate desde,
+            LocalDate hasta,
+            String ordenarPor,
+            String direccion,
+            int pagina,
+            int tamanio) {
+
+        if (pagina < 0 || tamanio < 1 || tamanio > 100) {
+            throw new ReglaNegocioException(
+                    "La pagina debe ser >= 0 y el tamanio debe estar entre 1 y 100");
+        }
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new ReglaNegocioException("Rango de fechas invalido");
+        }
+
+        Sort orden = construirSort(ordenarPor, direccion).and(Sort.by("id"));
+        PageRequest solicitud = PageRequest.of(pagina, tamanio, orden);
+        LocalDateTime desdeHora = desde == null ? null : desde.atStartOfDay();
+        LocalDateTime hastaHora = hasta == null ? null : hasta.atTime(LocalTime.MAX);
+
+        Page<Venta> resultado = ventaRepository.buscarPaginado(
+                clienteId, estado, desdeHora, hastaHora, solicitud);
+
+        List<Long> ids = resultado.getContent().stream().map(Venta::getId).toList();
+        List<VentaResponseDTO> contenido;
+        if (ids.isEmpty()) {
+            contenido = List.of();
+        } else {
+            java.util.Map<Long, Venta> porId = ventaRepository.buscarConDetalles(ids)
+                    .stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Venta::getId, v -> v, (primera, segunda) -> primera));
+            contenido = ids.stream()
+                    .map(porId::get)
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::convertirResponse)
+                    .toList();
+        }
+
+        return new PaginaResponseDTO<>(
+                contenido,
+                resultado.getNumber(),
+                resultado.getSize(),
+                resultado.getTotalElements(),
+                resultado.getTotalPages(),
+                resultado.isLast());
+    }
     // CONSTRUIR ORDENAMIENTO
     private Sort construirSort(
             String ordenarPor,

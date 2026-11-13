@@ -3,6 +3,7 @@ package pe.edu.upeu.PharmaBackend.service.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,6 +22,8 @@ import pe.edu.upeu.PharmaBackend.repository.UsuarioRepository;
 import pe.edu.upeu.PharmaBackend.security.JwtService;
 import pe.edu.upeu.PharmaBackend.security.PermisosPorRol;
 import pe.edu.upeu.PharmaBackend.service.service.AuthService;
+import pe.edu.upeu.PharmaBackend.service.service.AuditoriaService;
+import pe.edu.upeu.PharmaBackend.auditoria.EventoAuditoria;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -36,19 +39,22 @@ public class AuthServiceImpl implements AuthService {
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
     private final PasswordEncoder passwordEncoder;
+    private final AuditoriaService auditoriaService;
 
     public AuthServiceImpl(
             AuthenticationManager authenticationManager,
             JwtService jwtService,
             UsuarioRepository usuarioRepository,
             UsuarioMapper usuarioMapper,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            AuditoriaService auditoriaService) {
 
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
         this.usuarioRepository = usuarioRepository;
         this.usuarioMapper = usuarioMapper;
         this.passwordEncoder = passwordEncoder;
+        this.auditoriaService = auditoriaService;
     }
 
     @Override
@@ -59,12 +65,14 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Intento de inicio de sesión: usuario={}", username);
 
-        Authentication autenticacion = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        username,
-                        request.getPassword()
-                )
-        );
+        Authentication autenticacion;
+        try {
+            autenticacion = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(username, request.getPassword()));
+        } catch (AuthenticationException ex) {
+            registrarLoginSeguro("LOGIN_FALLIDO", username);
+            throw ex;
+        }
 
         UserDetails principal =
                 (UserDetails) autenticacion.getPrincipal();
@@ -72,6 +80,7 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = buscar(principal.getUsername());
 
         String token = jwtService.generarToken(principal);
+        registrarLoginSeguro("LOGIN_EXITOSO", username);
 
         List<String> roles =
                 usuarioMapper.nombresRoles(usuario.getRoles());
@@ -160,4 +169,11 @@ public class AuthServiceImpl implements AuthService {
                         )
                 );
     }
-}
+
+    private void registrarLoginSeguro(String accion, String username) {
+        try {
+            auditoriaService.registrar(EventoAuditoria.login(accion, username));
+        } catch (RuntimeException ex) {
+            log.error("Error guardando auditoria de login: {}", accion, ex);
+        }
+    }}

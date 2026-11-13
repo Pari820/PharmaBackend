@@ -17,5 +17,15 @@ public interface VentaService {
             LocalDate hasta,
             String ordenarPor,
             String direccion);
+
+    pe.edu.upeu.PharmaBackend.dto.PaginaResponseDTO<VentaResponseDTO> buscarVentasPaginadas(
+            Long clienteId,
+            EstadoVenta estado,
+            LocalDate desde,
+            LocalDate hasta,
+            String ordenarPor,
+            String direccion,
+            int pagina,
+            int tamanio);
 }
 
