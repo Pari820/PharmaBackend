@@ -4,8 +4,8 @@
 **Estudiante:** Josias Pari Mamani  
 **Fecha de ejecución:** 15 de noviembre de 2026 (hora local, según reporte HTML)  
 **Repositorio:** `pharma-frontend`  
-**HEAD local consultado:** `78198ce`  
-**Importante:** esta referencia identifica el HEAD al momento de la consulta. Las pruebas y configuración nuevas figuraban sin seguimiento o sin confirmar en Git; debe actualizarse con el commit que efectivamente incorpore esta suite.
+**Commit de la suite E2E:** `53a596b`  
+**Referencia verificable:** la suite E2E se confirmó y subió al repositorio frontend mediante el commit `53a596b`.
 
 ## Entorno
 
@@ -46,4 +46,4 @@ En una ejecución anterior de tres repeticiones, la prueba **E2E-08, filtro de a
 
 ## Otras verificaciones pendientes de incorporar
 
-Los resultados anteriores **no equivalen** a evidencias de registro exitoso de venta, descuento de stock, trazabilidad con `requestId` o prueba de token alterado: esas verificaciones requieren sus propias pruebas y evidencias. El reporte debe complementarse con los casos HTTP de Postman y la trazabilidad de una venta confirmada.
+La venta 63 fue registrada correctamente y documentada aparte en `docs/evidencias/s14-estabilizacion/`: comprobante, consulta Oracle, auditoría, logs y stock posterior. No se ejecutó una prueba automatizada específica de token alterado, ni se conservó evidencia del stock anterior.

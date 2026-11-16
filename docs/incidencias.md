@@ -88,8 +88,8 @@
 - **Causa raíz:** cuerpo JSON de prueba incompleto. Es una incidencia de preparación de datos, no un defecto confirmado del backend.
 - **Corrección:** preparar un JSON válido con un cliente existente, producto existente y stock suficiente, y volver a ejecutar una sola vez para evitar descuentos repetidos.
 - **Commit relacionado:** no aplica: no se modificó código para este rechazo, que es correcto.
-- **Prueba de regresión:** captura Postman de HTTP 400; falta comprobar el flujo de venta exitosa y su trazabilidad.
-- **Estado:** Cerrada como prueba negativa; **verificación positiva de venta pendiente**.
+- **Prueba de regresión:** captura Postman de HTTP 400; la venta 63 fue comprobada posteriormente: `CREADO_POR=vendedor`, HTTP 201 y evento `VENTA_REGISTRADA`, requestId `3904ec86`.
+- **Estado:** Cerrada como prueba negativa; **venta 63 confirmada mediante comprobante, Oracle, evento y logs**.
 
 ## Resumen
 
@@ -111,5 +111,5 @@
 | Pruebas API / Ventas | 1 |
 
 **Incidencias críticas o altas abiertas:** 0.  
-**Pendientes documentales:** precisar commits de INC-S14-01 e INC-S14-02 y completar la trazabilidad positiva de venta.  
+**Pendientes documentales:** precisar commits de INC-S14-01 e INC-S14-02 y el registro de la venta 63 ya está trazado; queda evidenciar el stock anterior.  
 **Criterio de cierre:** las incidencias de configuración de pruebas se consideran cerradas cuando su ejecución posterior es exitosa; las verificaciones funcionales pendientes no se presentan como pruebas aprobadas.
