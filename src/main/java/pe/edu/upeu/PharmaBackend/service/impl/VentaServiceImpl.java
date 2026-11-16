@@ -1,23 +1,36 @@
+
 package pe.edu.upeu.PharmaBackend.service.impl;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
+import pe.edu.upeu.PharmaBackend.auditoria.EventoAuditoria;
 import org.springframework.transaction.annotation.Transactional;
+
 import pe.edu.upeu.PharmaBackend.dto.DetalleVentaRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.DetalleVentaResponseDTO;
+import pe.edu.upeu.PharmaBackend.dto.PaginaResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaResponseDTO;
+
 import pe.edu.upeu.PharmaBackend.entity.Cliente;
 import pe.edu.upeu.PharmaBackend.entity.DetalleVenta;
 import pe.edu.upeu.PharmaBackend.entity.Producto;
 import pe.edu.upeu.PharmaBackend.entity.Venta;
+
 import pe.edu.upeu.PharmaBackend.enums.EstadoVenta;
 import pe.edu.upeu.PharmaBackend.exception.RecursosNoEncontradoException;
 import pe.edu.upeu.PharmaBackend.exception.ReglaNegocioException;
+
 import pe.edu.upeu.PharmaBackend.repository.ClienteRepository;
 import pe.edu.upeu.PharmaBackend.repository.ProductoRepository;
 import pe.edu.upeu.PharmaBackend.repository.VentaRepository;
+
 import pe.edu.upeu.PharmaBackend.service.service.VentaService;
 
 import java.math.BigDecimal;
@@ -29,34 +42,56 @@ import java.util.Set;
 
 @Service
 public class VentaServiceImpl implements VentaService {
-    private static final Logger log = LoggerFactory.getLogger(VentaServiceImpl.class);
+
+    private static final Logger log =
+            LoggerFactory.getLogger(VentaServiceImpl.class);
 
     private final VentaRepository ventaRepository;
     private final ClienteRepository clienteRepository;
     private final ProductoRepository productoRepository;
+    private final ApplicationEventPublisher eventos;
 
-    private static final Set<String> CAMPOS_ORDENABLES = Set.of("id", "fecha", "total", "estado");
+    private static final Set<String> CAMPOS_ORDENABLES =
+            Set.of("id", "fecha", "total", "estado");
+
     private static final String ORDEN_POR_DEFECTO = "fecha";
 
     public VentaServiceImpl(
             VentaRepository ventaRepository,
             ClienteRepository clienteRepository,
-            ProductoRepository productoRepository) {
+            ProductoRepository productoRepository,
+            ApplicationEventPublisher eventos) {
 
         this.ventaRepository = ventaRepository;
         this.clienteRepository = clienteRepository;
         this.productoRepository = productoRepository;
+        this.eventos = eventos;
     }
 
+    // REGISTRAR VENTA - INVALIDAR CACHE DE PRODUCTOS
     @Override
     @Transactional
+    @CacheEvict(
+            cacheNames = "productos",
+            allEntries = true
+    )
     public VentaResponseDTO registrar(VentaRequestDTO request) {
-        Cliente cliente = clienteRepository.findById(request.getClienteId())
-                .orElseThrow(() ->new RecursosNoEncontradoException("Cliente no encontrado con id: "+ request.getClienteId()));
+
+        Cliente cliente = clienteRepository
+                .findById(request.getClienteId())
+                .orElseThrow(() ->
+                        new RecursosNoEncontradoException(
+                                "Cliente no encontrado con id: "
+                                        + request.getClienteId()
+                        )
+                );
 
         if (!Boolean.TRUE.equals(cliente.getEstado())) {
-            throw new ReglaNegocioException("No se puede registrar una venta para un cliente inactivo");
+            throw new ReglaNegocioException(
+                    "No se puede registrar una venta para un cliente inactivo"
+            );
         }
+
         Venta venta = new Venta();
 
         venta.setCliente(cliente);
@@ -65,21 +100,40 @@ public class VentaServiceImpl implements VentaService {
 
         BigDecimal total = BigDecimal.ZERO;
 
-        for (DetalleVentaRequestDTO item: request.getDetalles()) {
-            Producto producto = productoRepository.findById(item.getProductoId()).orElseThrow(() ->
-                    new RecursosNoEncontradoException("Producto no encontrado con id: "+ item.getProductoId()));
+        for (DetalleVentaRequestDTO item : request.getDetalles()) {
+
+            Producto producto = productoRepository
+                    .findById(item.getProductoId())
+                    .orElseThrow(() ->
+                            new RecursosNoEncontradoException(
+                                    "Producto no encontrado con id: "
+                                            + item.getProductoId()
+                            )
+                    );
 
             if (!Boolean.TRUE.equals(producto.getEstado())) {
-                throw new ReglaNegocioException("El producto "+ producto.getNombre()+ " se encuentra inactivo");
+                throw new ReglaNegocioException(
+                        "El producto "
+                                + producto.getNombre()
+                                + " se encuentra inactivo"
+                );
             }
 
-            if (producto.getStock()< item.getCantidad()) {
-
-                throw new ReglaNegocioException("Stock insuficiente para "+ producto.getNombre()+ ". Disponible: "+ producto.getStock()
-                        + ", solicitado: "+ item.getCantidad());
+            if (producto.getStock() < item.getCantidad()) {
+                throw new ReglaNegocioException(
+                        "Stock insuficiente para "
+                                + producto.getNombre()
+                                + ". Disponible: "
+                                + producto.getStock()
+                                + ", solicitado: "
+                                + item.getCantidad()
+                );
             }
 
-            BigDecimal subtotal = producto.getPrecio().multiply(BigDecimal.valueOf(item.getCantidad()));
+            BigDecimal subtotal = producto.getPrecio()
+                    .multiply(
+                            BigDecimal.valueOf(item.getCantidad())
+                    );
 
             DetalleVenta detalle = new DetalleVenta();
 
@@ -92,31 +146,49 @@ public class VentaServiceImpl implements VentaService {
 
             total = total.add(subtotal);
 
-            producto.setStock(producto.getStock()- item.getCantidad());
+            // DESCONTAR STOCK DEL PRODUCTO
+            producto.setStock(
+                    producto.getStock() - item.getCantidad()
+            );
         }
 
         venta.setTotal(total);
 
-        Venta guardada =ventaRepository.save(venta);
+        Venta guardada = ventaRepository.save(venta);
+        eventos.publishEvent(EventoAuditoria.de(
+                "VENTA_REGISTRADA", "Venta", guardada.getId(),
+                "total=" + guardada.getTotal() + " | items=" + guardada.getDetalles().size()));
 
         return convertirResponse(guardada);
     }
 
+    // BUSCAR VENTA POR ID
     @Override
     @Transactional(readOnly = true)
     public VentaResponseDTO buscar(Long id) {
 
-        Venta venta = ventaRepository.findById(id).orElseThrow(() ->
-                new RecursosNoEncontradoException("Venta no encontrada con id: "+ id));
+        Venta venta = ventaRepository.findById(id)
+                .orElseThrow(() ->
+                        new RecursosNoEncontradoException(
+                                "Venta no encontrada con id: " + id
+                        )
+                );
+
         return convertirResponse(venta);
     }
 
+    // LISTAR TODAS LAS VENTAS
     @Override
     @Transactional(readOnly = true)
     public List<VentaResponseDTO> listar() {
-        return ventaRepository.findAll().stream().map(this::convertirResponse).toList();
+
+        return ventaRepository.findAll()
+                .stream()
+                .map(this::convertirResponse)
+                .toList();
     }
 
+    // BUSCAR VENTAS CON FILTROS
     @Override
     @Transactional(readOnly = true)
     public List<VentaResponseDTO> buscarVentas(
@@ -129,9 +201,16 @@ public class VentaServiceImpl implements VentaService {
 
         long inicio = System.currentTimeMillis();
 
-        log.info("Inicio buscar ventas | clienteId={} | estado={} | "
+        log.info(
+                "Inicio buscar ventas | clienteId={} | estado={} | "
                         + "desde={} | hasta={} | ordenarPor={} | direccion={}",
-                clienteId, estado, desde, hasta, ordenarPor, direccion);
+                clienteId,
+                estado,
+                desde,
+                hasta,
+                ordenarPor,
+                direccion
+        );
 
         if (desde != null
                 && hasta != null
@@ -141,7 +220,9 @@ public class VentaServiceImpl implements VentaService {
                     "El rango de fechas es inválido: 'desde' ("
                             + desde
                             + ") es posterior a 'hasta' ("
-                            + hasta + ")");
+                            + hasta
+                            + ")"
+            );
         }
 
         Sort sort = construirSort(ordenarPor, direccion);
@@ -156,24 +237,94 @@ public class VentaServiceImpl implements VentaService {
 
         List<VentaResponseDTO> resultado =
                 ventaRepository
-                        .buscar(clienteId, estado, desdeHora, hastaHora, sort)
+                        .buscar(
+                                clienteId,
+                                estado,
+                                desdeHora,
+                                hastaHora,
+                                sort
+                        )
                         .stream()
                         .map(this::convertirResponse)
                         .toList();
 
-        log.info("Fin buscar ventas | clienteId={} | estado={} | "
+        log.info(
+                "Fin buscar ventas | clienteId={} | estado={} | "
                         + "desde={} | hasta={} | orden={} {} | "
                         + "filas={} | duracionMs={}",
-                clienteId, estado, desde, hasta, ordenarPor, direccion,
+                clienteId,
+                estado,
+                desde,
+                hasta,
+                ordenarPor,
+                direccion,
                 resultado.size(),
-                System.currentTimeMillis() - inicio);
+                System.currentTimeMillis() - inicio
+        );
 
         return resultado;
     }
 
-    private Sort construirSort(String ordenarPor, String direccion) {
+    // SESION 14: consulta paginada en base de datos con filtros.
+    @Override
+    @Transactional(readOnly = true)
+    public PaginaResponseDTO<VentaResponseDTO> buscarVentasPaginadas(
+            Long clienteId,
+            EstadoVenta estado,
+            LocalDate desde,
+            LocalDate hasta,
+            String ordenarPor,
+            String direccion,
+            int pagina,
+            int tamanio) {
 
-        String campo = (ordenarPor == null || ordenarPor.isBlank())
+        if (pagina < 0 || tamanio < 1 || tamanio > 100) {
+            throw new ReglaNegocioException(
+                    "La pagina debe ser >= 0 y el tamanio debe estar entre 1 y 100");
+        }
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new ReglaNegocioException("Rango de fechas invalido");
+        }
+
+        Sort orden = construirSort(ordenarPor, direccion).and(Sort.by("id"));
+        PageRequest solicitud = PageRequest.of(pagina, tamanio, orden);
+        LocalDateTime desdeHora = desde == null ? null : desde.atStartOfDay();
+        LocalDateTime hastaHora = hasta == null ? null : hasta.atTime(LocalTime.MAX);
+
+        Page<Venta> resultado = ventaRepository.buscarPaginado(
+                clienteId, estado, desdeHora, hastaHora, solicitud);
+
+        List<Long> ids = resultado.getContent().stream().map(Venta::getId).toList();
+        List<VentaResponseDTO> contenido;
+        if (ids.isEmpty()) {
+            contenido = List.of();
+        } else {
+            java.util.Map<Long, Venta> porId = ventaRepository.buscarConDetalles(ids)
+                    .stream()
+                    .collect(java.util.stream.Collectors.toMap(
+                            Venta::getId, v -> v, (primera, segunda) -> primera));
+            contenido = ids.stream()
+                    .map(porId::get)
+                    .filter(java.util.Objects::nonNull)
+                    .map(this::convertirResponse)
+                    .toList();
+        }
+
+        return new PaginaResponseDTO<>(
+                contenido,
+                resultado.getNumber(),
+                resultado.getSize(),
+                resultado.getTotalElements(),
+                resultado.getTotalPages(),
+                resultado.isLast());
+    }
+    // CONSTRUIR ORDENAMIENTO
+    private Sort construirSort(
+            String ordenarPor,
+            String direccion) {
+
+        String campo = (ordenarPor == null
+                || ordenarPor.isBlank())
                 ? ORDEN_POR_DEFECTO
                 : ordenarPor.trim();
 
@@ -183,10 +334,12 @@ public class VentaServiceImpl implements VentaService {
                     "El campo de ordenamiento '"
                             + campo
                             + "' no está permitido. Campos válidos: "
-                            + CAMPOS_ORDENABLES);
+                            + CAMPOS_ORDENABLES
+            );
         }
 
-        String sentido = (direccion == null || direccion.isBlank())
+        String sentido = (direccion == null
+                || direccion.isBlank())
                 ? "desc"
                 : direccion.trim();
 
@@ -196,16 +349,20 @@ public class VentaServiceImpl implements VentaService {
             throw new ReglaNegocioException(
                     "La dirección de ordenamiento '"
                             + sentido
-                            + "' no está permitida. Valores válidos: asc, desc");
+                            + "' no está permitida. Valores válidos: asc, desc"
+            );
         }
 
-        String propiedadEntidad = campo.equals("fecha") ? "fechaRegistro" : campo;
+        String propiedadEntidad = campo.equals("fecha")
+                ? "fechaRegistro"
+                : campo;
 
         return sentido.equalsIgnoreCase("asc")
                 ? Sort.by(propiedadEntidad).ascending()
                 : Sort.by(propiedadEntidad).descending();
     }
 
+    // CONVERTIR ENTIDAD A DTO
     private VentaResponseDTO convertirResponse(Venta venta) {
 
         List<DetalleVentaResponseDTO> detalles =
@@ -219,9 +376,13 @@ public class VentaServiceImpl implements VentaService {
                                         detalle.getPrecio(),
                                         detalle.getSubtotal()
                                 )
-                        ).toList();
+                        )
+                        .toList();
 
-        String clienteNombre = venta.getCliente().getNombres()+ " "+ venta.getCliente().getApellidos();
+        String clienteNombre =
+                venta.getCliente().getNombres()
+                        + " "
+                        + venta.getCliente().getApellidos();
 
         return new VentaResponseDTO(
                 venta.getId(),
@@ -233,5 +394,4 @@ public class VentaServiceImpl implements VentaService {
                 detalles
         );
     }
-
 }

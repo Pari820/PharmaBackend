@@ -1,5 +1,7 @@
 package pe.edu.upeu.PharmaBackend.service.impl;
 
+import org.springframework.context.ApplicationEventPublisher;
+import pe.edu.upeu.PharmaBackend.auditoria.EventoAuditoria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -30,9 +32,12 @@ public class ClienteServiceImpl implements ClienteService {
             Set.of("id", "dni", "nombres", "apellidos", "email");
 
     private final ClienteRepository clienteRepository;
+    private final ApplicationEventPublisher eventos;
 
-    public ClienteServiceImpl(ClienteRepository clienteRepository) {
+    public ClienteServiceImpl(ClienteRepository clienteRepository,
+                              ApplicationEventPublisher eventos) {
         this.clienteRepository = clienteRepository;
+        this.eventos = eventos;
     }
 
     @Override
@@ -67,6 +72,9 @@ public class ClienteServiceImpl implements ClienteService {
 
         Cliente guardado = clienteRepository.save(cliente);
 
+        eventos.publishEvent(EventoAuditoria.de(
+                "CLIENTE_REGISTRADO", "Cliente", guardado.getId(),
+                "Cliente registrado correctamente"));
         log.info("Cliente registrado correctamente id={}", guardado.getId());
         return convertirResponse(guardado);
     }
@@ -208,6 +216,9 @@ public class ClienteServiceImpl implements ClienteService {
         cliente.setEstado(false);
         clienteRepository.save(cliente);
 
+        eventos.publishEvent(EventoAuditoria.de(
+                "CLIENTE_DESACTIVADO", "Cliente", id,
+                "Cliente desactivado"));
         log.info("Cliente id={} dado de baja correctamente", id);
     }
 

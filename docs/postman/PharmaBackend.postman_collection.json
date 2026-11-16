@@ -1,0 +1,1738 @@
+{
+  "info": {
+    "name": "PharmaSoft - Sesion 14 - Pruebas Postman",
+    "_postman_id": "4a1da017-77e0-464e-a94c-afff08a576d8",
+    "description": "Coleccion para backend Spring Boot local (8080). 1) Ejecuta Login ADMIN, 2) consultas de productos/ventas/auditoria, 3) login vendedor y comprueba 403. NO uses en produccion. Algunas operaciones de escritura estan separadas y requieren IDs reales. No contiene contrasenas reales.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - Autenticacion",
+      "item": [
+        {
+          "name": "Login ADMIN - guarda token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usuarioAdmin}}\",\n  \"password\": \"{{claveAdmin}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const d = pm.response.json();",
+                  " const token = d.token || d.accessToken || d.jwt;",
+                  " pm.test(\"Se devuelve token JWT\", () => pm.expect(token).to.be.a('string').and.not.empty);",
+                  " if (token) {pm.collectionVariables.set(\"token\",token); pm.collectionVariables.set(\"tokenAdmin\",token);}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login VENDEDOR - guarda token vendedor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usuarioVendedor}}\",\n  \"password\": \"{{claveVendedor}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const d = pm.response.json();",
+                  " const token = d.token || d.accessToken || d.jwt;",
+                  " pm.test(\"Se devuelve token JWT\", () => pm.expect(token).to.be.a('string').and.not.empty);",
+                  " if (token) {pm.collectionVariables.set(\"token\",token); pm.collectionVariables.set(\"tokenVendedor\",token);}",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login incorrecto - comprobar rechazo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usuarioAdmin}}\",\n  \"password\": \"clave-incorrecta-para-prueba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Genera LOGIN_FALLIDO si la auditoria esta conectada."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Login invalido se rechaza\", () => pm.expect([400,401,403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Productos y paginacion",
+      "item": [
+        {
+          "name": "Productos pagina 0 tamanio 20",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=0&tamanio=20&ordenarPor=nombre&direccion=asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                },
+                {
+                  "key": "ordenarPor",
+                  "value": "nombre"
+                },
+                {
+                  "key": "direccion",
+                  "value": "asc"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos pagina 0 tamanio 100",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=0&tamanio=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "100"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos pagina 1 tamanio 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=1&tamanio=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "1"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "10"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos pagina 249 tamanio 20",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=249&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "249"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos tamanio 500 - debe devolver 409",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=0&tamanio=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "500"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Productos sin token - debe devolver 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos?pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Ventas y filtros",
+      "item": [
+        {
+          "name": "Ventas pagina 0 tamanio 10",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?pagina=0&tamanio=10&ordenarPor=fecha&direccion=desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "10"
+                },
+                {
+                  "key": "ordenarPor",
+                  "value": "fecha"
+                },
+                {
+                  "key": "direccion",
+                  "value": "desc"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas pagina 0 tamanio 20",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas pagina 0 tamanio 50",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?pagina=0&tamanio=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "50"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas por fechas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?desde={{desde}}&hasta={{hasta}}&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "desde",
+                  "value": "{{desde}}"
+                },
+                {
+                  "key": "hasta",
+                  "value": "{{hasta}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas por estado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?estado=REGISTRADA&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "estado",
+                  "value": "REGISTRADA"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas por cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?clienteId={{clienteId}}&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "clienteId",
+                  "value": "{{clienteId}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Configura clienteId con un ID real de tu BD."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ventas tamanio 500 - debe devolver 409",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas/buscar?pagina=0&tamanio=500",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas",
+                "buscar"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "500"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Auditoria (solo ADMIN)",
+      "item": [
+        {
+          "name": "Auditoria pagina 0",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria ventas registradas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?accion=VENTA_REGISTRADA&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "accion",
+                  "value": "VENTA_REGISTRADA"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria cambios de precio",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?accion=PRECIO_MODIFICADO&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "accion",
+                  "value": "PRECIO_MODIFICADO"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria logins fallidos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?accion=LOGIN_FALLIDO&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "accion",
+                  "value": "LOGIN_FALLIDO"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria por usuario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?usuario={{usuarioVendedor}}&pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "usuario",
+                  "value": "{{usuarioVendedor}}"
+                },
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  " const p=pm.response.json();",
+                  " pm.test(\"Estructura PaginaResponseDTO\",()=>{",
+                  " pm.expect(p).to.have.all.keys('contenido','pagina','tamanio','totalElementos','totalPaginas','ultima');",
+                  " pm.expect(p.contenido).to.be.an('array');",
+                  " });",
+                  " pm.test(\"Cantidad no supera tamanio\",()=>pm.expect(p.contenido.length).to.be.at.most(p.tamanio));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria con VENDEDOR - debe devolver 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auditoria sin token - debe devolver 401",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auditoria?pagina=0&tamanio=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auditoria"
+              ],
+              "query": [
+                {
+                  "key": "pagina",
+                  "value": "0"
+                },
+                {
+                  "key": "tamanio",
+                  "value": "20"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Salud y seguridad",
+      "item": [
+        {
+          "name": "Actuator health publico",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actuator metrics VENDEDOR - debe devolver 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "metrics"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Escritura (SOLO DESARROLLO - datos reales)",
+      "description": "Estas peticiones modifican la base de datos. Ejecutar solo en entorno dev y tras cambiar IDs/valores por datos reales. Para verificar auditoria y descuento de stock.",
+      "item": [
+        {
+          "name": "Crear venta (descuenta stock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/ventas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "ventas"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVendedor}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"detalles\": [\n    {\n      \"productoId\": \"{{productoId}}\",\n      \"cantidad\": 2\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Al enviar, registra una venta y DESCUENTA 2 unidades del stock. Elegir cliente y producto validos con stock suficiente."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modificar precio producto - auditoria",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/productos/{{productoId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "productos",
+                "{{productoId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"{{productoNombre}}\",\n  \"precio\": \"{{precioNuevo}}\",\n  \"stock\": \"{{stockProducto}}\",\n  \"estado\": true,\n  \"categoriaId\": \"{{categoriaId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "ATENCION: reemplaza los valores de nombre, precio, stock y categoria con los actuales del producto, cambiando solo el precio. Modifica BD."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "usuarioAdmin",
+      "value": "admin"
+    },
+    {
+      "key": "claveAdmin",
+      "value": ""
+    },
+    {
+      "key": "usuarioVendedor",
+      "value": "vendedor"
+    },
+    {
+      "key": "claveVendedor",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenVendedor",
+      "value": ""
+    },
+    {
+      "key": "desde",
+      "value": "2026-11-01"
+    },
+    {
+      "key": "hasta",
+      "value": "2026-11-13"
+    },
+    {
+      "key": "clienteId",
+      "value": ""
+    },
+    {
+      "key": "productoId",
+      "value": ""
+    },
+    {
+      "key": "productoNombre",
+      "value": ""
+    },
+    {
+      "key": "precioNuevo",
+      "value": ""
+    },
+    {
+      "key": "stockProducto",
+      "value": ""
+    },
+    {
+      "key": "categoriaId",
+      "value": ""
+    }
+  ]
+}

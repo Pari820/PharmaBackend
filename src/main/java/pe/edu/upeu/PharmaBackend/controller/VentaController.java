@@ -5,6 +5,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import pe.edu.upeu.PharmaBackend.dto.PaginaResponseDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaRequestDTO;
 import pe.edu.upeu.PharmaBackend.dto.VentaResponseDTO;
 import pe.edu.upeu.PharmaBackend.enums.EstadoVenta;
@@ -57,37 +58,20 @@ public class VentaController {
 
 
     @GetMapping("/buscar")
-    public ResponseEntity<List<VentaResponseDTO>> buscar(
-
+    public ResponseEntity<PaginaResponseDTO<VentaResponseDTO>> buscar(
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(required = false) EstadoVenta estado,
             @RequestParam(required = false)
-            Long clienteId,
-
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false)
-            EstadoVenta estado,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(defaultValue = "fecha") String ordenarPor,
+            @RequestParam(defaultValue = "desc") String direccion,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "10") int tamanio) {
 
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate desde,
-
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate hasta,
-
-            @RequestParam(required = false, defaultValue = "fecha")
-            String ordenarPor,
-
-            @RequestParam(required = false, defaultValue = "desc")
-            String direccion) {
-
-        return ResponseEntity.ok(
-                ventaService.buscarVentas(
-                        clienteId,
-                        estado,
-                        desde,
-                        hasta,
-                        ordenarPor,
-                        direccion
-                )
-        );
+        return ResponseEntity.ok(ventaService.buscarVentasPaginadas(
+                clienteId, estado, desde, hasta,
+                ordenarPor, direccion, pagina, tamanio));
     }
 }

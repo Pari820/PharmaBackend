@@ -1,0 +1,39 @@
+package pe.edu.upeu.PharmaBackend.dto.auth;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+public class CambioPasswordRequestDTO {
+
+    @NotBlank(message = "La contraseña actual es obligatoria")
+    private String passwordActual;
+
+    @NotBlank(message = "La nueva contraseña es obligatoria")
+    @Size(
+            min = 8,
+            max = 72,
+            message = "La nueva contraseña debe tener entre 8 y 72 caracteres"
+    )
+    @Pattern(
+            regexp = "^(?=.*[A-Za-z])(?=.*\\d).+$",
+            message = "La nueva contraseña debe contener al menos una letra y un número"
+    )
+    private String passwordNueva;
+
+    public String getPasswordActual() {
+        return passwordActual;
+    }
+
+    public void setPasswordActual(String passwordActual) {
+        this.passwordActual = passwordActual;
+    }
+
+    public String getPasswordNueva() {
+        return passwordNueva;
+    }
+
+    public void setPasswordNueva(String passwordNueva) {
+        this.passwordNueva = passwordNueva;
+    }
+}
